@@ -12,6 +12,23 @@ version="version 0.2"
 #dig archlinux.org --> comprobar conexion a internet
 #cat .zsh_history > /mnt/home/mi_zsh_history_arch_install.txt
 
+########################################
+# Log file 
+########################################
+LOGFILE=${PWD}/install-archlinux-logfile.txt
+DATE=$(date '+%F %H:%M:%S')
+echo "----------------------------------" >> $LOGFILE
+#echo "$DATE Running $0 with $@ arguments." >> $LOG_FILE
+echo "$DATE Started $0" >> $LOGFILE
+echo "----------------------------------" >> $LOGFILE
+#echo "Runing $0 with $@ arguments."
+#echo "Look at $LOG_FILE for more info."
+
+
+RUN="[\e[1;33m**\e[00m] "
+FAIL="[\e[1;31mfailed\e[00m] "
+OK="[\e[1;32mok\e[00m] "
+
 
 set_default_net(){
 #net
@@ -62,7 +79,10 @@ CLOCK="utc"
 
 
 net_menu(){
-if ping -c 1 -w 1 -q www.example.com > /dev/null ; then ping_="ok"; else ping_="down";fi 
+clear
+header
+echo -e "$DATE Testing network config." >> $LOGFILE && tail -1 $LOGFILE
+if ping -c 1 -w 1 -q www.example.com > /dev/null ; then ping_="ok" && echo -e "$DATE Internet connection $OK" >> $LOGFILE && tail -1 $LOGFILE; else ping_="down" && echo -e "$DATE Internet connection $FAIL">>$LOGFILE && tail -1 $LOGFILE;fi 
 clear
 header
 echo " "
@@ -89,7 +109,7 @@ case "$option" in
 		;;
 	1)	clear; header
 		echo " "
-		read -p "IP Address: " IP_ADDR
+		read -p "IP Address: " IP_ADDR 
 		read -p "Submask: " SUBMASK
 		read -p "Gateway: " GATEWAY
 		read -p "Dns: " DNS
@@ -113,8 +133,9 @@ esac
 
 
 load_net(){
-echo "nameserver ${DNS}" > /etc/resolv.conf
-ip link set up ${WIRED_DEV}
+echo -e "\e[00;33m $DATE [**] Loading network config.\e[00m" >> $LOGFILE && tail -1 $LOGFILE
+echo "nameserver ${DNS}" > /etc/resolv.conf 
+ip link set up ${WIRED_DEV} 2>&1 >> $LOGFILE 
 ip addr flush dev ${WIRED_DEV}
 ip addr add ${IP_ADDR}/${SUBMASK} dev ${WIRED_DEV}
 ip route add default via ${GATEWAY}
@@ -205,7 +226,7 @@ case "$option" in
 	4)	clear
 		header
 		echo " "
-		echo -e "\e[00;32m mounting devices.\e[00m"
+		echo -e "\e[00;32m mounting devices.\e[00m" >> $LOGFILE && tail -1 $LOGFILE
 		disk_mount 
 		#clear
 		echo " "
@@ -242,12 +263,10 @@ echo -ne "\e[1;32m enter [yes] or [q]: \e[00m"
 read -r option
 case "$option" in
 	yes)	disk_format
-		clear
-		header
 		echo " "
-		echo "$(lsblk -f)"	
+		echo "$(lsblk -f)" 	
 		echo " "
-		echo -e "\e[00;31m disk formated, filesysem created, pres a key to back partition menu ...\e[00m"
+		echo -e "\e[00;31m pres a key to back partition menu ...\e[00m"
 		read
 		;;
 	q)	return
@@ -258,8 +277,9 @@ esac
 }
 
 disk_format(){
+echo -e "\e[00;33m $DATE [**] Partitioning disk ....\e[00m" >> $LOGFILE && tail -1 $LOGFILE
+echo -e "g\nn\n1\n\n+1M\nn\n${BOOT}\n\n${BOOTSIZE}\nn\n${ROOT}\n\n${ROOTSIZE}\nn\n${HOME_}\n\n${HOMESIZE}\nn\n${SWAP}\n\n\nt\n1\n4\nt\n2\n20\nt\n3\n19\nt\n4\n20\nw\n" | fdisk /dev/${DISK} 2>&1 >> $LOGFILE 
 
-echo -e "g\nn\n1\n\n+1M\nn\n${BOOT}\n\n${BOOTSIZE}\nn\n${ROOT}\n\n${ROOTSIZE}\nn\n${HOME_}\n\n${HOMESIZE}\nn\n${SWAP}\n\n\nt\n1\n4\nt\n2\n20\nt\n3\n19\nt\n4\n20\nw\n" | fdisk /dev/${DISK}
 
 #echo -e "g\nn\n1\n\n+1M\nn\n${BOOT}\n\n${BOOTSIZE}\nn\n${SWAP}\n\n${SWAPSIZE}\nn\n${ROOT}\n\n\nt\n1\n4\nt\n2\n20\nt\n3\n19\nt\n4\n20\nw\n" | fdisk /dev/${DISK}
 #sed -e 's/\s*\([\+0-9a-za-z]*\).*/\1/' << fdisk_cmds  | sudo fdisk /dev/$1
@@ -294,6 +314,7 @@ echo -e "g\nn\n1\n\n+1M\nn\n${BOOT}\n\n${BOOTSIZE}\nn\n${ROOT}\n\n${ROOTSIZE}\nn
 #20     # linux filesystem
 #w      # write partition table and exit
 #fdisk_cmds
+echo -e "\e[00;32m $DATE [ok] Disk partitions done.\e[00m" >> $LOGFILE && tail -1 $LOGFILE
 	#clear
 	#header
 	#echo " "
@@ -304,19 +325,22 @@ echo -e "g\nn\n1\n\n+1M\nn\n${BOOT}\n\n${BOOTSIZE}\nn\n${ROOT}\n\n${ROOTSIZE}\nn
 	# make filesistems
 	# tested with qemu-nbd and virtual machine, need to rethink what to do for diferent devices, change dev/sda1 for dev/nbd0p1.
 	## bios boot +1m /dev/sda1 	 # <- bios boot free space to prevent overwrited by grub on gpt
+echo -e "\e[00;33m $DATE [**] Formating filesystem partitions ....\e[00m" >> $LOGFILE && tail -1 $LOGFILE
 	echo " "
-	echo -e "\e[00;32m making filesystem for boot\e[00m"
-	mkfs.xfs -f -L BOOT /dev/${DISK}${BOOT}       # <- boot partition format vfat for uefi
-	echo -e "\e[00;32m making filesystem for swap\e[00m"
-	mkswap -f -L SWAP /dev/${DISK}${SWAP}        # <- swap partition
-	echo -e "\e[00;32m making filesystem for root\e[00m"
-	mkfs.xfs -f -L ROOT /dev/${DISK}${ROOT}       # <- root partition
-	echo -e "\e[00;32m making filesystem for home\e[00m"
-	mkfs.xfs -f -L HOME /dev/${DISK}${HOME_}       # <- home partition
+	echo -e "\e[00;33m making filesystem for boot\e[00m" >> $LOGFILE && tail -1 $LOGFILE
+	mkfs.xfs -f -L BOOT /dev/${DISK}${BOOT} 2>&1 >> $LOGFILE || exit 1     # <- boot partition format vfat for uefi
+	echo -e "\e[00;33m making filesystem for swap\e[00m" >> $LOGFILE && tail -1 $LOGFILE
+	mkswap -f -L SWAP /dev/${DISK}${SWAP} 2>&1 >> $LOGFILE || exit 1     # <- swap partition
+	echo -e "\e[00;33m making filesystem for root\e[00m" >> $LOGFILE && tail -1 $LOGFILE
+	mkfs.xfs -f -L ROOT /dev/${DISK}${ROOT} 2>&1 >> $LOGFILE || exit 1    # <- root partition
+	echo -e "\e[00;33m making filesystem for home\e[00m" >> $LOGFILE && tail -1 $LOGFILE
+	mkfs.xfs -f -L HOME /dev/${DISK}${HOME_} 2>&1 >> $LOGFILE || exit 1     # <- home partition
 	
+echo -e "\e[00;32m $DATE [ok] Partitions format done.\e[00m" >> $LOGFILE && tail -1 $LOGFILE
 }
 
 disk_mount(){
+echo -e "\e[00;33m $DATE [**] Mounting filesystem ....\e[00m" >> $LOGFILE && tail -1 $LOGFILE
 #
 # mounting devices
 #echo " umounting if mounted"
@@ -337,6 +361,7 @@ mount /dev/${DISK}${HOME_} /mnt/home
 #echo "/dev/mapper/home      /home     xfs    defaults        0 0" >> /etc/fstab 
 #echo "## <name>       <device>        <password>              <type?>" >> /etc/crypttab 
 #echo "home	/dev/sdaX	0 0" >> /etc/crypttab 
+echo -e "\e[00;32m $DATE [ok] Filesystem mounted.\e[00m" >> $LOGFILE && tail -1 $LOGFILE
 }
 
 
@@ -383,7 +408,7 @@ echo " "
 echo -e "\e[00;31m [q] quit/exit\e[00m" 
 echo " "
 echo "=========================================================" 
-echo -ne "\e[1;32m enter a option [1-6] or [q]: \e[00m"
+echo -ne "\e[1;31m enter a option [1-6] or [q]: \e[00m"
 
 read option
 case "$option" in
@@ -673,7 +698,8 @@ EOF
 cat <<EOF> /etc/iptables/iptables.rules
 
 EOF
-# cp /etc/iptables/simple_firewall.rules /etc/iptables/iptables.rules
+# cp /etc/eptables/simple_firewall.rules /etc/iptables/iptables.rules
+# cp /etc/eptables/simple_firewall.rules /etc/iptables/ip6tables.rules
 systemctl enable iptables
 systemctl enable ip6tables
 systemctl start iptables
@@ -710,9 +736,9 @@ case "$option" in # exec option
 		if [ "$CONTROL" != "YES" ] ; then echo "Exiting ... " && exit 0
 		else
 		clear ; header
-		set_default_keymap && load_keymap && echo " [*] Set keymap $KEYMAP"
-		set_default_net && load_net
-		set_default_partition && disk_format && disk_mount
+		set_default_keymap && load_keymap && echo -e " $msg_ok Keymap set $KEYMAP" || echo -e " $msg_fail Keymap not set"
+		set_default_net && load_net && echo -e " $msg_ok Network ok " || echo -e " $msg_fail Network down."
+		set_default_partition && disk_format && disk_mount && echo -e " $msg_ok Disk format ok " || echo -e " $msg_fail Disk format fail. Exiting."
 		fi
 		;;
 	1)	keymap_menu
