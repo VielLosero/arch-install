@@ -1,0 +1,508 @@
+#!/bin/bash
+
+#Mi script de instalacion de arch
+
+version="version 0.1"
+
+#### Comandos utiles
+#less install.txt --> leer fichero install
+#lsblk --> ver particiones montadas
+#fdisk -l --> ver discos
+#ifconfig --> ver interficies de red
+#dig archlinux.org --> comprobar conexion a internet
+#cat .zsh_history > /mnt/home/mi_zsh_history_arch_install.txt
+
+#
+keymap_menu(){	
+clear
+header
+echo " "
+echo " Keymap = $keymap "
+echo " "
+echo " [1] Spanish (es)"
+echo " [2] English (us)"
+echo " [3] French (fr)"
+echo " "
+echo -e "\e[00;31m [q] Quit/Exit\e[00m" 
+echo " "
+echo "=========================================================" 
+echo -ne "\e[1;32m Enter a option [1-3] or [q]: \e[00m"
+
+read option
+case "$option" in
+	1)	loadkeys es # /usr/share/kbd/keymaps/i386/qwerty/es-cp850.map.gz
+		keymap=es && keymap_menu
+		;;
+	2)	loadkeys us 
+		keymap=us && keymap_menu
+		;;
+	3)	loadkeys fr 
+		keymap=fr && keymap_menu
+		;;
+	q)	return
+		;;
+	*)	keymap_menu
+		;;
+esac
+}
+
+disk_selection(){
+clear
+header
+echo " "
+echo " Disk/Device list: "
+echo " "
+echo "$(fdisk -l | grep "/dev")"
+echo " "
+echo -e "\e[00;31m [q] Quit/Exit\e[00m" 
+echo " "
+echo "=========================================================" 
+echo -ne "\e[1;32m Enter device [sda/sdb/nb0] or [q]: \e[00m"
+
+read option
+if [ "$option" == "q" ];then 
+	return
+else
+	if fdisk -l /dev/$option > /dev/null ; then disk_partition $option
+	else
+		echo " Device invalid ... pres a key to continue ..."
+		read && disk_selection
+	fi	       
+fi
+}
+
+
+disk_partition(){
+clear
+header
+echo " "
+echo " Disk/Device to format = /dev/$1 "
+echo " "
+echo " [1] Change disk/device"
+echo " [2] Use entire disk"
+echo " [3] Manual partition with fdisk"
+echo " "
+echo -e "\e[00;31m [q] Quit/Exit\e[00m" 
+echo " "
+echo "=========================================================" 
+echo -ne "\e[1;32m Enter a option [1-3] or [q]: \e[00m"
+
+read option
+case "$option" in
+	1)	disk_selection
+		;;
+	2)	disk_format $1
+		;;
+	3)	fdisk /dev/$1
+		;;
+	q)	return
+		;;
+	*)	disk_partition
+		;;
+esac
+}
+
+disk_format(){
+clear
+header
+echo " "
+echo " This will erase all the data on /dev/$1 "
+echo " Are you sure? YES or q"
+echo " "
+echo -e "\e[00;31m [q] Quit/Exit\e[00m" 
+echo " "
+echo "=========================================================" 
+echo -ne "\e[1;32m Enter [YES] or [q]: \e[00m"
+
+read option
+if [ "$option" == "q" ];then 
+	return
+else
+	if [ "$option" == "YES" ];then 
+echo -e "g\nn\n1\n\n+1M\nn\n2\n\n+500M\nn\n3\n\n+9G\nn\n4\n\n\nt\n1\n4\nt\n2\n20\nt\n3\n19\nt\n4\n20\nw\n" | fdisk /dev/$1
+#sed -e 's/\s*\([\+0-9a-zA-Z]*\).*/\1/' << FDISK_CMDS  | sudo fdisk /dev/$1
+#g      # create new GPT partition
+#n      # add new partition
+#1      # partition number
+#       # default - first sector
+#+1M    # partition size
+#n      # add new partition
+#2      # partition number
+#       # default - first sector
+#+500M  # default - last sector
+#n      # add new partition
+#3      # partition number
+#       # default - first sector
+#+9G    # default - last sector
+#n      # add new partition
+#4      # partition number
+#       # default - first sector
+#       # default - last sector
+#t      # change partition type
+#1      # partition number
+#4      # Bios boot
+#t      # change partition type
+#2      # partition number
+#20     # Linux filesystem Change to vfat for UEFI
+#t      # change partition type
+#3      # partition number
+#19     # Linux swap
+#t      # change partition type
+#4      # partition number
+#20     # Linux filesystem
+#w      # write partition table and exit
+#FDISK_CMDS
+clear
+echo " "
+echo "$(fdisk -l /dev/$1)"	
+echo " "
+echo -e "\e[00;31m Make filesystem and mount devices. Pres a key to continue ...\e[00m"
+read
+# Make filesistems
+# Tested with qemu-nbd and virtual machine, need to rethink what to do for diferent devices, change dev/sda1 for dev/nbd0p1.
+## BIOS boot +1M /dev/sda1 	 # <- Bios boot free space to prevent overwrited by grub on GPT
+echo " "
+echo -e "\e[00;32m Making filesystem for BOOT\e[00m"
+mkfs.xfs -L BOOT /dev/$12       # <- boot partition format vfat for UEFI
+echo -e "\e[00;32m Making filesystem for SWAP\e[00m"
+mkswap -L SWAP /dev/$13        # <- swap partition
+echo -e "\e[00;32m Making filesystem for ROOT\e[00m"
+mkfs.xfs -L ROOT /dev/$14       # <- root partition
+##mkfs.xfs -L HOME /dev/$15      # <- home partition
+#
+# Mounting devices
+#echo " Umounting if mounted"
+umount -R /mnt
+echo " "
+echo -e "\e[00;32m Mounting devices.\e[00m"
+mount /dev/$14 /mnt
+mkdir /mnt/boot
+#mkdir /mnt/home
+mount /dev/$12 /mnt/boot
+##mount /dev/$15 /mnt/home
+clear
+echo " "
+echo "$(lsblk)"
+echo " "
+echo -e "\e[00;31m Disk ready to install system. Pres a key to continue ...\e[00m"
+read
+	else
+		disk_format
+	fi	       
+fi
+
+#cryptsetup -v --type luks --cipher aes-xts-plain64 --key-size 256 --hash sha256 --iter-time 2000 --use-urandom --verify-passphrase luksFormat /dev/sdaX
+#cryptsetup open /dev/sdaX home
+#mount /dev/mapper/home /mnt/
+#pacman -Ss xfs
+#pacman -S xfsdump xfsprogs
+#mkfs.xfs /dev/mapper/home 
+#mount /dev/mapper/home /home/
+#echo "/dev/mapper/home      /home     xfs    defaults        0 0" >> /etc/fstab 
+#echo "## <name>       <device>        <password>              <type?>" >> /etc/crypttab 
+#echo "home	/dev/sda8	0 0" >> /etc/crypttab 
+}
+
+
+net(){
+#pacstrap /mnt base base-devel dhcpcd
+echo 'nameserver 8.8.8.8' > /etc/resolv.conf
+if ping -c 1 google.es > /dev/null ; then net="ok"; else net="down";fi 
+
+clear
+header
+echo " "
+echo " Net status: $net"
+echo " "
+echo " Help comands to config network manually:"
+echo " ip link set up dev ens3"
+echo " ip adress add 192.168.1.2/255.255.255.0 dev ens3"
+echo " ip route add defautl via 192.168.1.1"
+echo " echo 'nameserver 8.8.8.8' > /etc/resolv.conf"
+echo " "
+echo " [1] DHCP eth0 "
+echo " [2] DHCP wlan0 "
+echo " "
+echo -e "\e[00;31m [q] Quit/Exit\e[00m" 
+echo " "
+echo "=========================================================" 
+echo -ne "\e[1;32m Enter a option [1-2] or [q]: \e[00m"
+
+read option
+case "$option" in
+	1)	pkill dhcpcd
+		dhcpcd eth0
+		net
+		;;
+	2)	pkill dhcpcd
+		dhcpdc wlan0
+		net
+		;;
+	q)	return
+		;;
+	*)	net
+		;;
+esac
+}
+
+install_base(){
+clear
+header
+echo " "
+echo " [1] Update before install"
+echo " [2] Install base packages"
+echo " [3] Chroot and config system"
+echo " [4] Chroot and install grub"
+echo " [5] Chroot and change root passwd"
+echo " [6] Umount all and reboot"
+echo " "
+echo -e "\e[00;31m [q] Quit/Exit\e[00m" 
+echo " "
+echo "=========================================================" 
+echo -ne "\e[1;32m Enter a option [1-3] or [q]: \e[00m"
+
+read option
+case "$option" in
+	1)	pacman -Syy && install_base
+		;;
+	2)	pacstrap /mnt base base-devel dhcpcd && genfstab -p /mnt > /mnt/etc/fstab && cp $0 /mnt/root && config && install_base
+		##copy script to root filesystem to install software inside chroot and after reboot
+		#cp $0 /mnt/root/
+		;;
+	3)	arch-chroot /mnt chmod 700 /root/config.sh
+		arch-chroot /mnt /root/config.sh
+		;;
+	4)	arch-chroot /mnt pacman -S grub os-prober linux # efibootmgr
+		#arch-chroot /mnt grub-install --target=x86_64-efi --efi-directory=/boot --bootloader-id=grub_uefi --recheck
+		# efi-directory especifica el punto de montaje de la ESP
+		# bootloader-id especifica el nombre del directorio utilizado para guardar el archivo grubx64.efi
+		# need to rethink for bios grub. Seems auto if not EFI.
+		arch-chroot /mnt grub-install --target=x86_64-efi --efi-directory=/boot --bootloader-id=grub_uefi --recheck
+		arch-chroot /mnt grub-install --recheck /dev/sda
+		arch-chroot /mnt grub-mkconfig -o /boot/grub/grub.cfg && install_base
+		;;
+	5)	arch-chroot /mnt passwd && install_base
+		;;
+	6)	umount -R /mnt && reboot now
+		;;
+	q)	return
+		;;
+	*)	install_base
+		;;
+esac
+}
+
+config(){
+cat <<EOF> /mnt/root/config.sh
+echo computer_name > /etc/hostname
+ln -sf /usr/share/zoneinfo/Europe/Madrid /etc/localtime  #ln -sf /usr/share/zoneinfo/zone/subzone /etc/localtime
+echo > /etc/locale.conf
+echo 'LANG=es_ES.utf8' >> /etc/locale.conf
+echo 'LC_CTYPE="es_ES.utf8"' >> /etc/locale.conf
+echo 'LC_NUMERIC="es_ES.utf8"' >> /etc/locale.conf
+echo 'LC_TIME="es_ES.utf8"' >> /etc/locale.conf
+echo 'LC_COLLATE="es_ES.utf8"' >> /etc/locale.conf
+echo 'LC_MONETARY="es_ES.utf8"' >> /etc/locale.conf
+echo 'LC_MESSAGES="es_ES.utf8"' >> /etc/locale.conf
+echo 'LC_PAPER="es_ES.utf8"' >> /etc/locale.conf
+echo 'LC_NAME="es_ES.utf8"' >> /etc/locale.conf
+echo 'LC_ADDRESS="es_ES.utf8"' >> /etc/locale.confecho 'LC_TELEPHONE="es_ES.utf8"' >> /etc/locale.conf
+echo 'LC_MEASUREMENT="es_ES.utf8"' >> /etc/locale.conf
+echo 'LC_IDENTIFICATION="es_ES.utf8"' >> /etc/locale.conf
+echo 'LC_ALL=' >> /etc/locale.conf
+
+#cp /etc/locale.gen /etc/locale.gen.bkp
+echo "es_ES.UTF-8 UTF-8" >> /etc/locale.gen
+locale-gen
+
+echo 'clock="UTC"' > /etc/conf.d/hwclock
+hwclock --systohc
+mkinitcpio -p linux
+echo "KEYMAP=es" > /etc/vconsole.conf
+EOF
+}
+
+#
+install_packages(){
+
+# pacman -Qe | awk '{print $1}' | awk 'BEGIN{RS="="} $1=$1'
+pacman-key --refresh-keys
+pacman -S archey3 audacity base bind-tools bridge-utils cantarell-fonts deadbeef dmenu dmidecode dnsmasq ebtables efibootmgr firefox flameshot grub handbrake handbrake-cli htop i3-wm xorg-xinit iotop libreoffice-fresh-es libvirt linux linux-firmware nano ncdu openshot openssh os-prober qemu ranger rsync sudo sysstat termite testdisk tmux ttf-dejavu unzip vi vim virt-manager wget xf86-video-vesa xfsdump xfsprogs xorg-bdftopcf xorg-docs xorg-font-util xorg-fonts-100dpi xorg-fonts-75dpi xorg-fonts-encodings xorg-iceauth xorg-luit xorg-mkfontscale xorg-server xorg-server-common xorg-server-devel xorg-server-xdmx xorg-server-xephyr xorg-server-xnest xorg-server-xvfb xorg-server-xwayland xorg-sessreg xorg-setxkbmap xorg-smproxy xorg-x11perf xorg-xauth xorg-xbacklight xorg-xcmsdb xorg-xcursorgen xorg-xdpyinfo xorg-xdriinfo xorg-xev xorg-xgamma xorg-xhost xorg-xinit xorg-xinput xorg-xkbcomp xorg-xkbevd xorg-xkbutils xorg-xkill xorg-xlsatoms xorg-xlsclients xorg-xmodmap xorg-xpr xorg-xprop xorg-xrandr xorg-xrdb xorg-xrefresh xorg-xset xorg-xsetroot xorg-xvinfo xorg-xwd xorg-xwininfo xorg-xwud zsh macchanger wpa_supplicant sox alsa-utils pulseaudio pulseaudio-alsa klavaro wpa_supplicant feh w3m claws-mail keepassxc youtube-dl mesa-demos lsof nvidia git base-devel lshw net-tools mpv xfs xfsdump xfsprogs cantarell-fonts
+
+}
+
+
+post_install(){	
+clear
+header
+echo " "
+echo " "
+echo " [1] Default interface names"
+echo " [2] Hidden ipv6 mac address"
+echo " [3] Dont store coredumps with sensible info"
+echo " [4] Set umask read/write for owner only"
+echo " [5] Set delay after failed logins attemps"
+echo " [6] Set up Iptables"
+echo " [7] Install harden kernel"
+echo " [8] Autostart X"
+echo " [9] Show links for info post install"
+echo " "
+echo -e "\e[00;31m [q] Quit/Exit\e[00m" 
+echo " "
+echo "=========================================================" 
+echo -ne "\e[1;32m Enter a option [1-10] or [q]: \e[00m"
+
+read option
+case "$option" in
+	1)	default_interface_names && post_install
+		;;
+	2)	hidden_ipv6_mac && post_install
+		;;
+	3)	no_store_coredump && post_install
+		;;
+	4)	set_umask && post_install
+		;;
+	5)	delay_after_failed_logins && post_install
+		;;
+	6)	iptables_config && post_install
+		;;
+	7)	harden_kernel && post_install
+		;;
+	8)	autostartx && post_install 
+		;;
+	9)	show_links
+		;;
+	q)	return
+		;;
+	*)	keymap_menu
+		;;
+esac
+}
+
+
+default_interface_names(){
+##### Set net interfaces name to eth0 and wlan0
+#See --> http://www.freedesktop.org/wiki/Software/systemd/PredictableNetworkInterfaceNames/
+ln -s /dev/null /etc/udev/rules.d/80-net-setup-link.rules
+}
+
+hidden_ipv6_mac(){
+## Enable IPv6 Privacy Extensions dont show mac on ipv6 address
+echo "net.ipv6.conf.all.use_tempaddr = 2" > /etc/sysctl.d/40-ipv6.conf 
+echo "net.ipv6.conf.default.use_tempaddr = 2" >> /etc/sysctl.d/40-ipv6.conf
+echo "net.ipv6.conf.eth0.use_tempaddr = 2" >> /etc/sysctl.d/40-ipv6.conf
+echo "net.ipv6.conf.wlan0.use_tempaddr = 2" >> /etc/sysctl.d/40-ipv6.conf
+# need reboot
+#etc... --> more interfaces
+}
+
+
+no_store_coredump(){
+## prevent store coredumps with lot of info like passwords
+echo "Storage=none" >> /etc/systemd/coredump.conf
+## prevent store coredumps with lot of info like passwords
+echo "* hard core 0 " >> /etc/security/limits.conf
+}
+
+
+set_umask(){
+#Umasks set the default file permissions for newly created files. [40] The default is 022 which is not very secure. This gives read access to every user on the system for newly created files. Edit /etc/profile and change the umask to 0077 which makes new files not readable by anyone other than the owner. 
+#
+#set to 0077
+sed -i 's/umask 022/umask 0077/g' /etc/profile
+}
+
+delay_after_failed_logins(){
+
+echo "auth optional pam_faildelay.so delay=4000000" >> /etc/pam.d/system-login
+#4000000 is the time in microseconds to delay. 
+}
+
+harden_kernel(){
+# install hardened kernel and reload grub
+pacman -S linux-hardened
+grub-mkconfig -o /boot/grub/grub.cfg
+}
+
+autostartx(){
+##### Start x at login
+#add to ~/.bash_profile, use /etc/skel/.bash_profile template to create if not exist.
+echo "[[ -z $DISPLAY && $XDG_VTNR -eq 1 ]] && exec startx" >> ~/.bash_profile
+echo "setxkbmap es" >> ${HOME}/.xinitrc
+echo "i3" >> ${HOME}/.xinitrc
+}
+
+show_links(){
+header
+echo "For harden system read https://wiki.archlinux.org/index.php/Security"
+echo " "
+echo " Press a key to back menu ..."
+read
+post_install
+}
+
+
+iptables_config(){
+
+
+}
+
+
+header(){
+echo -e "\n---------------------------------------------------------" 
+echo -e "\e[1;32m Arch linux install script\e[00m $version"
+echo -e "---------------------------------------------------------" 
+}
+main_menu(){
+clear # Cealr screeen
+header # show header
+echo " "
+echo " [1] Set keymap"
+echo " [2] Disk partition"
+echo " [3] Set up net"
+echo " [4] Install base system"
+echo " [5] Install extra packages"
+echo " [6] Post install"
+echo " "
+echo -e "\e[00;31m [q] Quit/Exit\e[00m" 
+echo " "
+echo "=========================================================" 
+echo -ne "\e[1;32m Enter a option [1-7] or [q]: \e[00m"
+read option # Read option
+case "$option" in # Exec option
+
+	1)	header
+		keymap_menu
+		;;
+	2)	header
+		disk_selection
+		;;
+	3)	header
+		net
+		;;
+	4)	header
+		install_base
+		;;
+	5)	install_packages
+		main_menu
+		;;
+	6)	post_install
+		;;
+	q)	echo " " && exit 0
+		;;
+	
+	*)	main_menu
+		;;
+
+esac	
+}
+
+#Start loop
+while :; 
+do
+main_menu # Show menu
+echo " "
+
+done
+exit 0
+
