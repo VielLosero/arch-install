@@ -8,7 +8,7 @@ version="version 0.2"
 #less install.txt --> leer fichero install
 #lsblk --> ver particiones montadas
 #fdisk -l --> ver discos
-#ifconfig --> ver interficies de red
+#ifinstall_config --> ver interficies de red
 #dig archlinux.org --> comprobar conexion a internet
 #cat .zsh_history > /mnt/home/mi_zsh_history_arch_install.txt
 
@@ -76,13 +76,15 @@ LOCALETYPE="UTF-8"
 CLOCK="utc"
 }
 
-
-
-net_menu(){
+test_net(){
 clear
 header
-echo -e "$DATE Testing network config." >> $LOGFILE && tail -1 $LOGFILE
+echo -e "$DATE \e[00;33mTesting network install_config.\e[00m" >> $LOGFILE && tail -1 $LOGFILE
 if ping -c 1 -w 1 -q www.example.com > /dev/null ; then ping_="ok" && echo -e "$DATE Internet connection $OK" >> $LOGFILE && tail -1 $LOGFILE; else ping_="down" && echo -e "$DATE Internet connection $FAIL">>$LOGFILE && tail -1 $LOGFILE;fi 
+}
+
+net_menu(){
+test_net	
 clear
 header
 echo " "
@@ -94,7 +96,7 @@ echo -e " gateway = \e[00;33m${GATEWAY}\e[00m"
 echo -e " dns = \e[00;33m${DNS}\e[00m"
 echo " "
 echo " [0] Set default"
-echo " [1] Manual configuration"
+echo " [1] Manual install_configuration"
 echo " [2] Dhcp ${WIRED_DEV} "
 echo " [3] Dhcp wifi "
 echo " "
@@ -105,19 +107,21 @@ echo -ne "\e[1;32m enter a option [0-3] or [q]: \e[00m"
 
 read -r option
 case "$option" in
-	0)	set_default_net && load_net && net_menu
+	0)	set_default_net && load_net 
+		net_menu
 		;;
 	1)	clear; header
 		echo " "
+		read -p "Device: " WIRED_DEV 
 		read -p "IP Address: " IP_ADDR 
 		read -p "Submask: " SUBMASK
 		read -p "Gateway: " GATEWAY
 		read -p "Dns: " DNS
-		load_net
+		load_net 
 		net_menu
 		;;
 	2)	pkill dhcpcd
-		dhcpcd ${WIRED_DEV}
+		dhcpcd ${WIRED_DEV} 
 		net_menu
 		;;
 	3)	pkill dhcpcd
@@ -133,13 +137,20 @@ esac
 
 
 load_net(){
-echo -e "\e[00;33m $DATE [**] Loading network config.\e[00m" >> $LOGFILE && tail -1 $LOGFILE
+echo -e "$DATE \e[00;33mLoading network install_config.\e[00m" >> $LOGFILE && tail -1 $LOGFILE
+result=0
 echo "nameserver ${DNS}" > /etc/resolv.conf 
-ip link set up ${WIRED_DEV} 2>&1 >> $LOGFILE 
-ip addr flush dev ${WIRED_DEV}
-ip addr add ${IP_ADDR}/${SUBMASK} dev ${WIRED_DEV}
-ip route add default via ${GATEWAY}
+ip link set up ${WIRED_DEV} 2>>$LOGFILE
+if [ $? -ne 0 ] ; then result=1 && return ; fi
+ip addr flush dev ${WIRED_DEV} 2>>$LOGFILE
+if [ $? -ne 0 ]; then result=1 && return ; fi
+ip addr add ${IP_ADDR}/${SUBMASK} dev ${WIRED_DEV} 2>>$LOGFILE
+if [ $? -ne 0 ]; then result=1 && return ; fi
+ip route add default via ${GATEWAY} 2>>$LOGFILE
+if [ $? -ne 0 ]; then result=1 && return ; fi
+if [ $result -eq 1 ]; then echo -e "$DATE Network install_config $FAIL" >> $LOGFILE && tail -1 $LOGFILE && exit 1 ; fi
 }
+
 
 
 keymap_menu(){
@@ -158,7 +169,8 @@ echo -ne "\e[1;32m enter a option [0-1] or [q]: \e[00m"
 
 read -r option
 case "$option" in
-	0)	set_default_keymap && load_keymap && keymap_menu
+	0)	set_default_keymap && load_keymap 
+		keymap_menu
 		;;
 	1)	select KEYMAP in "${keymap_list[@]}"; do
 		if [ "$KEYMAP" != "" ] ;then load_keymap && keymap_menu && break ;else echo "please select a correct option number ...";fi
@@ -172,7 +184,9 @@ esac
 }
 
 load_keymap(){
+echo -e "$DATE \e[00;33mLoading keymap install_config.\e[00m" >> $LOGFILE && tail -1 $LOGFILE
 loadkeys ${KEYMAP}
+if [ $? -ne 0 ]; then echo -e "$DATE Load keymap $FAIL" >> $LOGFILE && tail -1 $LOGFILE && exit 1 ; fi
 }
 
 declare -a keymap_list=("ansi-dvorak" "amiga-de" "amiga-us" "applkey" "atari-de" "atari-se" "atari-uk-falcon" "atari-us" "azerty" "backspace" "bashkir" "be-latin1" "bg-cp1251" "bg-cp855" "bg_bds-cp1251" "bg_bds-utf8" "bg_pho-cp1251" "bg_pho-utf8" "br-abnt" "br-abnt2" "br-latin1-abnt2" "br-latin1-us" "by" "by-cp1251" "bywin-cp1251" "cf" "colemak" "croat" "ctrl" "cz" "cz-cp1250" "cz-lat2" "cz-lat2-prog" "cz-qwertz" "cz-us-qwertz" "de" "de-latin1" "de-latin1-nodeadkeys" "de-mobii" "de_ch-latin1" "de_alt_utf-8" "defkeymap" "defkeymap_v1.0" "dk" "dk-latin1" "dvorak" "dvorak-ca-fr" "dvorak-es" "dvorak-fr" "dvorak-l" "dvorak-la" "dvorak-programmer" "dvorak-r" "dvorak-ru" "dvorak-sv-a1" "dvorak-sv-a5" "dvorak-uk" "emacs" "emacs2" "es" "es-cp850" "es-olpc" "et" "et-nodeadkeys" "euro" "euro1" "euro2" "fi" "fr" "fr-bepo" "fr-bepo-latin9" "fr-latin1" "fr-latin9" "fr-pc" "fr_ch" "fr_ch-latin1" "gr" "gr-pc" "hu" "hu101" "il" "il-heb" "il-phonetic" "is-latin1" "is-latin1-us" "it" "it-ibm" "it2" "jp106" "kazakh" "keypad" "ky_alt_sh-utf-8" "kyrgyz" "la-latin1" "lt" "lt.baltic" "lt.l4" "lv" "lv-tilde" "mac-be" "mac-de-latin1" "mac-de-latin1-nodeadkeys" "mac-de_ch" "mac-dk-latin1" "mac-dvorak" "mac-es" "mac-euro" "mac-euro2" "mac-fi-latin1" "mac-fr" "mac-fr_ch-latin1" "mac-it" "mac-pl" "mac-pt-latin1" "mac-se" "mac-template" "mac-uk" "mac-us" "mk" "mk-cp1251" "mk-utf" "mk0" "nl" "nl2" "no" "no-dvorak" "no-latin1" "pc110" "pl" "pl1" "pl2" "pl3" "pl4" "pt-latin1" "pt-latin9" "pt-olpc" "ro" "ro_std" "ro_win" "ru" "ru-cp1251" "ru-ms" "ru-yawerty" "ru1" "ru2" "ru3" "ru4" "ru_win" "ruwin_alt-cp1251" "ruwin_alt-koi8-r" "ruwin_alt-utf-8" "ruwin_alt_sh-utf-8" "ruwin_cplk-cp1251" "ruwin_cplk-koi8-r" "ruwin_cplk-utf-8" "ruwin_ct_sh-cp1251" "ruwin_ct_sh-koi8-r" "ruwin_ct_sh-utf-8" "ruwin_ctrl-cp1251" "ruwin_ctrl-koi8-r" "ruwin_ctrl-utf-8" "se-fi-ir209" "se-fi-lat6" "se-ir209" "se-lat6" "sg" "sg-latin1" "sg-latin1-lk450" "sk-prog-qwerty" "sk-prog-qwertz" "sk-qwerty" "sk-qwertz" "slovene" "sr-cy" "sun-pl" "sun-pl-altgraph" "sundvorak" "sunkeymap" "sunt4-es" "sunt4-fi-latin1" "sunt4-no-latin1" "sunt5-cz-us" "sunt5-de-latin1" "sunt5-es" "sunt5-fi-latin1" "sunt5-fr-latin1" "sunt5-ru" "sunt5-uk" "sunt5-us-cz" "sunt6-uk" "sv-latin1" "tj_alt-utf8" "tr_f-latin5" "tr_q-latin5" "tralt" "trf" "trf-fggiod" "trq" "ttwin_alt-utf-8" "ttwin_cplk-utf-8" "ttwin_ct_sh-utf-8" "ttwin_ctrl-utf-8" "ua" "ua-cp1251" "ua-utf" "ua-utf-ws" "ua-ws" "uk" "unicode" "us" "us-acentos" "wangbe" "wangbe2" "windowkeys");
@@ -277,8 +291,10 @@ esac
 }
 
 disk_format(){
-echo -e "\e[00;33m $DATE [**] Partitioning disk ....\e[00m" >> $LOGFILE && tail -1 $LOGFILE
-echo -e "g\nn\n1\n\n+1M\nn\n${BOOT}\n\n${BOOTSIZE}\nn\n${ROOT}\n\n${ROOTSIZE}\nn\n${HOME_}\n\n${HOMESIZE}\nn\n${SWAP}\n\n\nt\n1\n4\nt\n2\n20\nt\n3\n19\nt\n4\n20\nw\n" | fdisk /dev/${DISK} 2>&1 >> $LOGFILE 
+# if mounted
+umount -R /mnt
+echo -e "$DATE\e[00;33m Partitioning disk ....\e[00m" >> $LOGFILE && tail -1 $LOGFILE
+echo -e "g\nn\n1\n\n+1M\nn\n${BOOT}\n\n${BOOTSIZE}\nn\n${ROOT}\n\n${ROOTSIZE}\nn\n${HOME_}\n\n${HOMESIZE}\nn\n${SWAP}\n\n\nt\n1\n4\nt\n2\n20\nt\n3\n19\nt\n4\n20\nw\n" | fdisk /dev/${DISK} 2>&1 >> $LOGFILE || exit 1 
 
 
 #echo -e "g\nn\n1\n\n+1M\nn\n${BOOT}\n\n${BOOTSIZE}\nn\n${SWAP}\n\n${SWAPSIZE}\nn\n${ROOT}\n\n\nt\n1\n4\nt\n2\n20\nt\n3\n19\nt\n4\n20\nw\n" | fdisk /dev/${DISK}
@@ -314,7 +330,7 @@ echo -e "g\nn\n1\n\n+1M\nn\n${BOOT}\n\n${BOOTSIZE}\nn\n${ROOT}\n\n${ROOTSIZE}\nn
 #20     # linux filesystem
 #w      # write partition table and exit
 #fdisk_cmds
-echo -e "\e[00;32m $DATE [ok] Disk partitions done.\e[00m" >> $LOGFILE && tail -1 $LOGFILE
+echo -e "$DATE Disk partitions done. $OK" >> $LOGFILE && tail -1 $LOGFILE
 	#clear
 	#header
 	#echo " "
@@ -325,31 +341,31 @@ echo -e "\e[00;32m $DATE [ok] Disk partitions done.\e[00m" >> $LOGFILE && tail -
 	# make filesistems
 	# tested with qemu-nbd and virtual machine, need to rethink what to do for diferent devices, change dev/sda1 for dev/nbd0p1.
 	## bios boot +1m /dev/sda1 	 # <- bios boot free space to prevent overwrited by grub on gpt
-echo -e "\e[00;33m $DATE [**] Formating filesystem partitions ....\e[00m" >> $LOGFILE && tail -1 $LOGFILE
+echo -e "$DATE\e[00;33m Formating filesystem partitions ....\e[00m" >> $LOGFILE && tail -1 $LOGFILE
 	echo " "
-	echo -e "\e[00;33m making filesystem for boot\e[00m" >> $LOGFILE && tail -1 $LOGFILE
+	echo -e "$DATE making filesystem for boot" >> $LOGFILE && tail -1 $LOGFILE
 	mkfs.xfs -f -L BOOT /dev/${DISK}${BOOT} 2>&1 >> $LOGFILE || exit 1     # <- boot partition format vfat for uefi
-	echo -e "\e[00;33m making filesystem for swap\e[00m" >> $LOGFILE && tail -1 $LOGFILE
+	echo -e "$DATE making filesystem for swap" >> $LOGFILE && tail -1 $LOGFILE
 	mkswap -f -L SWAP /dev/${DISK}${SWAP} 2>&1 >> $LOGFILE || exit 1     # <- swap partition
-	echo -e "\e[00;33m making filesystem for root\e[00m" >> $LOGFILE && tail -1 $LOGFILE
+	echo -e "$DATE making filesystem for root" >> $LOGFILE && tail -1 $LOGFILE
 	mkfs.xfs -f -L ROOT /dev/${DISK}${ROOT} 2>&1 >> $LOGFILE || exit 1    # <- root partition
-	echo -e "\e[00;33m making filesystem for home\e[00m" >> $LOGFILE && tail -1 $LOGFILE
+	echo -e "$DATE making filesystem for home" >> $LOGFILE && tail -1 $LOGFILE
 	mkfs.xfs -f -L HOME /dev/${DISK}${HOME_} 2>&1 >> $LOGFILE || exit 1     # <- home partition
 	
-echo -e "\e[00;32m $DATE [ok] Partitions format done.\e[00m" >> $LOGFILE && tail -1 $LOGFILE
+echo -e "$DATE Partitions format done. $OK" >> $LOGFILE && tail -1 $LOGFILE
 }
 
 disk_mount(){
-echo -e "\e[00;33m $DATE [**] Mounting filesystem ....\e[00m" >> $LOGFILE && tail -1 $LOGFILE
+echo -e "$DATE\e[00;33m Mounting filesystem ....\e[00m" >> $LOGFILE && tail -1 $LOGFILE
 #
 # mounting devices
 #echo " umounting if mounted"
 umount -R /mnt
-mount /dev/${DISK}${ROOT} /mnt
+mount /dev/${DISK}${ROOT} /mnt || exit 1
 mkdir /mnt/boot
-mount /dev/${DISK}${BOOT} /mnt/boot
+mount /dev/${DISK}${BOOT} /mnt/boot || exit 1
 mkdir /mnt/home
-mount /dev/${DISK}${HOME_} /mnt/home
+mount /dev/${DISK}${HOME_} /mnt/home || exit 1
 
 #cryptsetup -v --type luks --cipher aes-xts-plain64 --key-size 256 --hash sha256 --iter-time 2000 --use-urandom --verify-passphrase luksformat /dev/sdax
 #cryptsetup open /dev/sdax home
@@ -361,7 +377,7 @@ mount /dev/${DISK}${HOME_} /mnt/home
 #echo "/dev/mapper/home      /home     xfs    defaults        0 0" >> /etc/fstab 
 #echo "## <name>       <device>        <password>              <type?>" >> /etc/crypttab 
 #echo "home	/dev/sdaX	0 0" >> /etc/crypttab 
-echo -e "\e[00;32m $DATE [ok] Filesystem mounted.\e[00m" >> $LOGFILE && tail -1 $LOGFILE
+echo -e "$DATE Filesystem mounted. $OK" >> $LOGFILE && tail -1 $LOGFILE
 }
 
 
@@ -388,19 +404,20 @@ case "$option" in
 		;;
 	q)	return
 		;;
-	*)	config_menu
+	*)	install_config_menu
 		;;
 esac
 }
 
 
-install_menu(){
+installation_menu(){
 clear
 header
 echo " "
+echo " [0] autoinstall"
 echo " [1] update before install"
 echo " [2] install base packages"
-echo " [3] chroot and config system"
+echo " [3] chroot and install_config system"
 echo " [4] chroot and install grub"
 echo " [5] chroot and change root passwd"
 echo " [6] umount all and reboot"
@@ -408,46 +425,60 @@ echo " "
 echo -e "\e[00;31m [q] quit/exit\e[00m" 
 echo " "
 echo "=========================================================" 
-echo -ne "\e[1;31m enter a option [1-6] or [q]: \e[00m"
+echo -ne "\e[1;32m enter a option [1-6] or [q]: \e[00m"
 
 read option
 case "$option" in
-	1)	update
-		;;
-	2)	pacstrap /mnt base linux linux-firmware base-devel dhcpcd xfsprogs && genfstab -p /mnt > /mnt/etc/fstab && cp $0 /mnt/root && config && install_base
-		##copy script to root filesystem to install software inside chroot and after reboot
-		#cp $0 /mnt/root/
-		;;
-	3)	config
+	0)	update
 		install_base
+		install_config
+		install_grub
+		installation_menu
+		arch-chroot /mnt passwd
+		umount -R /mnt && reboot now
 		;;
-	4)	arch-chroot /mnt pacman -S grub os-prober # efibootmgr
-		#arch-chroot /mnt grub-install --target=x86_64-efi --efi-directory=/boot --bootloader-id=grub_uefi --recheck
-		# efi-directory especifica el punto de montaje de la esp
-		# bootloader-id especifica el nombre del directorio utilizado para guardar el archivo grubx64.efi
-		# need to rethink for bios grub. seems auto if not efi.
-		arch-chroot /mnt grub-install --target=x86_64-efi --efi-directory=/boot --bootloader-id=grub_uefi --recheck
-		arch-chroot /mnt grub-install --recheck /dev/${DISK}
-		arch-chroot /mnt grub-mkconfig -o /boot/grub/grub.cfg && install_base
+	1)	update
+		installation_menu
 		;;
-	5)	arch-chroot /mnt passwd && install_base
+	2)	install_base
+		installation_menu
+		;;
+	3)	install_config
+		installation_menu
+		;;
+	4)	install_grub
+		installation_menu
+		;;
+	5)	arch-chroot /mnt passwd && installation_menu
 		;;
 	6)	umount -R /mnt && reboot now
 		;;
 	q)	return
 		;;
-	*)	install_base
+	*)	installation_menu
 		;;
 esac
 }
 
 
 update(){
-pacman-key --refresh-keys && pacman -Syy && install_base
+echo -e "$DATE\e[00;33m Updating keys and system ....\e[00m" >> $LOGFILE && tail -1 $LOGFILE
+pacman-key --refresh-keys && pacman -Syy 
+if [ $? -ne 0 ]; then echo -e "$DATE Update $FAIL" >> $LOGFILE && tail -1 $LOGFILE && exit 1 ; fi
 }
 
-config(){
-cat <<EOF> /mnt/root/config.sh
+install_base(){
+echo -e "$DATE\e[00;33m Installing base system ....\e[00m" >> $LOGFILE && tail -1 $LOGFILE
+[ ! "$(ls -A /mnt)" ] && echo "Dir /mnt empty, filesystem not mounted exiting... Install $FAIL" && exit 1
+pacstrap /mnt base linux linux-firmware base-devel dhcpcd xfsprogs && genfstab -p /mnt > /mnt/etc/fstab && cp $0 /mnt/root
+if [ $? -ne 0 ]; then echo -e "$DATE Install base $FAIL" >> $LOGFILE && tail -1 $LOGFILE && exit 1 ; fi
+##copy script to root filesystem to install software inside chroot and after reboot
+#cp $0 /mnt/root/
+}
+
+install_config(){
+echo -e "$DATE\e[00;33m Installing config at chroot ....\e[00m" >> $LOGFILE && tail -1 $LOGFILE
+cat <<EOF> /mnt/root/install_config.sh
 echo ${HOST_NAME} > /etc/hostname
 ln -sf ${LOCALTIME} /etc/localtime  #ln -sf /usr/share/zoneinfo/zone/subzone /etc/localtime
 echo > /etc/locale.conf
@@ -477,9 +508,25 @@ echo "keymap=${KEYMAP}" > /etc/vconsole.conf
 localectl set-x11-keymap ${KEYMAP}
 EOF
 
-arch-chroot /mnt chmod 700 /root/config.sh
-arch-chroot /mnt /root/config.sh
+arch-chroot /mnt chmod 700 /root/install_config.sh
+arch-chroot /mnt /root/install_config.sh
+if [ $? -ne 0 ]; then echo -e "$DATE Install config $FAIL" >> $LOGFILE && tail -1 $LOGFILE && exit 1 ; fi
 }
+
+install_grub(){
+echo -e "$DATE\e[00;33m Installing grub ....\e[00m" >> $LOGFILE && tail -1 $LOGFILE
+
+arch-chroot /mnt pacman -S grub os-prober # efibootmgr
+#arch-chroot /mnt grub-install --target=x86_64-efi --efi-directory=/boot --bootloader-id=grub_uefi --recheck
+# efi-directory especifica el punto de montaje de la esp
+# bootloader-id especifica el nombre del directorio utilizado para guardar el archivo grubx64.efi
+# need to rethink for bios grub. seems auto if not efi.
+arch-chroot /mnt grub-install --target=x86_64-efi --efi-directory=/boot --bootloader-id=grub_uefi --recheck
+arch-chroot /mnt grub-install --recheck /dev/${DISK}
+arch-chroot /mnt grub-mkinstall_config -o /boot/grub/grub.cfg 
+if [ $? -ne 0 ]; then echo -e "$DATE Install grub failed $FAIL" >> $LOGFILE && tail -1 $LOGFILE && exit 1 ; fi
+}
+
 
 #
 extra_packages_menu(){
@@ -487,6 +534,7 @@ clear
 header
 echo " "
 echo " "
+echo " [0] install all"
 echo " [1] install esentials"
 echo " [2] install desktop"
 echo " [3] install net"
@@ -504,27 +552,38 @@ echo -ne "\e[1;32m enter a option [1-9] or [q]: \e[00m"
 
 read option
 case "$option" in
-	1)	esentials && install_packages
+	0)	esentials
+		desktop
+		net_install
+		web
+		audio_video
+		office
+		virtualization
+		security
+		forensics
+		extra_packages_menu
 		;;
-	2)	desktop && install_packages
+	1)	esentials && extra_packages_menu
 		;;
-	3)	net_install && install_packages
+	2)	desktop && extra_packages_menu
 		;;
-	4)	web && install_packages
+	3)	net_install && extra_packages_menu
 		;;
-	5)	audio_video && install_packages
+	4)	web && extra_packages_menu
 		;;
-	6)	office && install_packages
+	5)	audio_video && extra_packages_menu
 		;;
-	7)	virtualization && install_packages
+	6)	office && extra_packages_menu
 		;;
-	8)	security && install_packages 
+	7)	virtualization && extra_packages_menu
 		;;
-	9)	forensics $$ install_packages
+	8)	security && extra_packages_menu 
+		;;
+	9)	forensics $$ extra_packages_menu
 		;;
 	q)	return
 		;;
-	*)	install_packages
+	*)	extra_packages_menu
 		;;
 esac
 }
@@ -583,6 +642,7 @@ clear
 header
 echo " "
 echo " "
+echo " [0] all"
 echo " [1] default interface names"
 echo " [2] hidden ipv6 mac address"
 echo " [3] dont store coredumps with sensible info"
@@ -600,27 +660,37 @@ echo -ne "\e[1;32m enter a option [1-9] or [q]: \e[00m"
 
 read option
 case "$option" in
-	1)	default_interface_names && post_install
+	0)	default_interface_names
+		hidden_ipv6_mac 
+		no_store_coredump 
+		set_umask 
+		delay_after_failed_logins
+		iptables_install_config 
+		harden_kernel
+		autostartx
+		post_install_menu
 		;;
-	2)	hidden_ipv6_mac && post_install
+	1)	default_interface_names && post_install_menu
 		;;
-	3)	no_store_coredump && post_install
+	2)	hidden_ipv6_mac && post_install_menu
 		;;
-	4)	set_umask && post_install
+	3)	no_store_coredump && post_install_menu
 		;;
-	5)	delay_after_failed_logins && post_install
+	4)	set_umask && post_install_menu
 		;;
-	6)	iptables_config && post_install
+	5)	delay_after_failed_logins && post_install_menu
 		;;
-	7)	harden_kernel && post_install
+	6)	iptables_install_config && post_install_menu
 		;;
-	8)	autostartx && post_install 
+	7)	harden_kernel && post_install_menu
+		;;
+	8)	autostartx && post_install_menu 
 		;;
 	9)	show_links
 		;;
 	q)	return
 		;;
-	*)	post_install
+	*)	post_install_menu
 		;;
 esac
 }
@@ -667,7 +737,7 @@ echo "auth optional pam_faildelay.so delay=4000000" >> /etc/pam.d/system-login
 harden_kernel(){
 # install hardened kernel and reload grub
 pacman -S linux-hardened
-grub-mkconfig -o /boot/grub/grub.cfg
+grub-mkinstall_config -o /boot/grub/grub.cfg
 }
 
 autostartx(){
@@ -685,11 +755,11 @@ echo "for harden system read https://wiki.archlinux.org/index.php/security"
 echo " "
 echo " press a key to back menu ..."
 read
-post_install
+post_install_menu
 }
 
 
-iptables_config(){
+iptables_install_config(){
 
 cat <<EOF> /etc/iptables/ip6tables.rules
 
@@ -709,7 +779,7 @@ systemctl start ip6tables
 
 header(){
 echo -e "\n---------------------------------------------------------" 
-echo -e "\e[1;32m arch linux install script\e[00m $version"
+echo -e "\e[1;32m Viel arch linux install script\e[00m $version"
 echo -e "---------------------------------------------------------" 
 }
 main_menu(){
@@ -736,10 +806,16 @@ case "$option" in # exec option
 		if [ "$CONTROL" != "YES" ] ; then echo "Exiting ... " && exit 0
 		else
 		clear ; header
-		set_default_keymap && load_keymap && echo -e " $msg_ok Keymap set $KEYMAP" || echo -e " $msg_fail Keymap not set"
-		set_default_net && load_net && echo -e " $msg_ok Network ok " || echo -e " $msg_fail Network down."
-		set_default_partition && disk_format && disk_mount && echo -e " $msg_ok Disk format ok " || echo -e " $msg_fail Disk format fail. Exiting."
+		set_default_keymap && load_keymap && echo -e "$DATE Keymap set $OK" || echo -e "$DATE Load keymap $FAIL"
+		set_default_net && load_net && test_net || exit 1
+		set_default_partition && disk_format && disk_mount || exit 1
+		install_base || exit 1
+		install_config || exit 1
+		install_grub || exot 1
+		arch-chroot /mnt passwd
+		umount -R /mnt && reboot now
 		fi
+		exit 1
 		;;
 	1)	keymap_menu
 		;;
@@ -747,7 +823,7 @@ case "$option" in # exec option
 		;;
 	3)	partition_menu
 		;;
-	4)	install_menu
+	4)	installation_menu
 		;;
 	5)	extra_packages_menu
 		;;
