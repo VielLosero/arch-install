@@ -240,7 +240,7 @@ case "$option" in
 	4)	clear
 		header
 		echo " "
-		echo -e "\e[00;32m mounting devices.\e[00m" >> $LOGFILE && tail -1 $LOGFILE
+		echo -e "$DATE\e[00;33m Mounting devices.\e[00m" >> $LOGFILE && tail -1 $LOGFILE
 		disk_mount 
 		#clear
 		echo " "
@@ -292,7 +292,9 @@ esac
 
 disk_format(){
 # if mounted
-umount -R /mnt
+[ "$(ls -A /mnt)" ] && echo "Dir /mnt not empty, traying to umount filesystem" >> $LOGFILE && tail -1 $LOGFILE  && umount -R /mnt 
+[ "$(ls -A /mnt)" ] && echo "Dir /mnt not empty, exiting " && exit 1
+[ ! "$(ls -A /mnt)" ] && echo "$DATE Umount successfully, continue ... " >> $LOGFILE && tail -1 $LOGFILE 
 echo -e "$DATE\e[00;33m Partitioning disk ....\e[00m" >> $LOGFILE && tail -1 $LOGFILE
 echo -e "g\nn\n1\n\n+1M\nn\n${BOOT}\n\n${BOOTSIZE}\nn\n${ROOT}\n\n${ROOTSIZE}\nn\n${HOME_}\n\n${HOMESIZE}\nn\n${SWAP}\n\n\nt\n1\n4\nt\n2\n20\nt\n3\n19\nt\n4\n20\nw\n" | fdisk /dev/${DISK} 2>&1 >> $LOGFILE || exit 1 
 
@@ -357,10 +359,14 @@ echo -e "$DATE Partitions format done. $OK" >> $LOGFILE && tail -1 $LOGFILE
 
 disk_mount(){
 echo -e "$DATE\e[00;33m Mounting filesystem ....\e[00m" >> $LOGFILE && tail -1 $LOGFILE
+# check if var not empty
+[ -z $DISK ] && set_default_partition
 #
 # mounting devices
 #echo " umounting if mounted"
-umount -R /mnt
+[ "$(ls -A /mnt)" ] && echo "Dir /mnt not empty, traying to umount filesystem" >> $LOGFILE && tail -1 $LOGFILE  && umount -R /mnt 
+[ "$(ls -A /mnt)" ] && echo "Dir /mnt not empty, exiting " && exit 1
+[ ! "$(ls -A /mnt)" ] && echo "$DATE Umount successfully, continue ... " >> $LOGFILE && tail -1 $LOGFILE 
 mount /dev/${DISK}${ROOT} /mnt || exit 1
 mkdir /mnt/boot
 mount /dev/${DISK}${BOOT} /mnt/boot || exit 1
@@ -433,8 +439,7 @@ case "$option" in
 		install_base
 		install_config
 		install_grub
-		installation_menu
-		arch-chroot /mnt passwd
+		passwd_root
 		umount -R /mnt && reboot now
 		;;
 	1)	update
@@ -449,7 +454,8 @@ case "$option" in
 	4)	install_grub
 		installation_menu
 		;;
-	5)	arch-chroot /mnt passwd && installation_menu
+	5)	passwd_root
+		installation_menu
 		;;
 	6)	umount -R /mnt && reboot now
 		;;
@@ -463,7 +469,8 @@ esac
 
 update(){
 echo -e "$DATE\e[00;33m Updating keys and system ....\e[00m" >> $LOGFILE && tail -1 $LOGFILE
-pacman-key --refresh-keys && pacman -Syy 
+#pacman-key --refresh-keys && pacman -Syy 
+pacman -Syy 
 if [ $? -ne 0 ]; then echo -e "$DATE Update $FAIL" >> $LOGFILE && tail -1 $LOGFILE && exit 1 ; fi
 }
 
@@ -478,6 +485,8 @@ if [ $? -ne 0 ]; then echo -e "$DATE Install base $FAIL" >> $LOGFILE && tail -1 
 
 install_config(){
 echo -e "$DATE\e[00;33m Installing config at chroot ....\e[00m" >> $LOGFILE && tail -1 $LOGFILE
+[ -z $KEYMAP ] && set_default_keymap
+set_default_chroot
 cat <<EOF> /mnt/root/install_config.sh
 echo ${HOST_NAME} > /etc/hostname
 ln -sf ${LOCALTIME} /etc/localtime  #ln -sf /usr/share/zoneinfo/zone/subzone /etc/localtime
@@ -496,16 +505,16 @@ echo 'lc_telephone="${LOCALE}"' >> /etc/locale.conf
 echo 'lc_measurement="${LOCALE}"' >> /etc/locale.conf
 echo 'lc_identification="${LOCALE}"' >> /etc/locale.conf
 
-#cp /etc/locale.gen /etc/locale.gen.bkp
-echo "${LOCALE} ${LOCALETYPE}" >> /etc/locale.gen
+cp /etc/locale.gen /etc/locale.gen.bkp
+echo "${LOCALE} ${LOCALETYPE}" > /etc/locale.gen
 locale-gen
 
-echo 'clock="${CLOCK}"' > /etc/conf.d/hwclock
+#echo "clock=${CLOCK}" > /etc/conf.d/hwclock
 hwclock --systohc
 # mkinitcpio was run if linux kernel are installed with pacstrap
 #mkinitcpio -p linux
 echo "keymap=${KEYMAP}" > /etc/vconsole.conf
-localectl set-x11-keymap ${KEYMAP}
+#localectl set-x11-keymap ${KEYMAP}
 EOF
 
 arch-chroot /mnt chmod 700 /root/install_config.sh
@@ -523,9 +532,17 @@ arch-chroot /mnt pacman -S grub os-prober # efibootmgr
 # need to rethink for bios grub. seems auto if not efi.
 arch-chroot /mnt grub-install --target=x86_64-efi --efi-directory=/boot --bootloader-id=grub_uefi --recheck
 arch-chroot /mnt grub-install --recheck /dev/${DISK}
-arch-chroot /mnt grub-mkinstall_config -o /boot/grub/grub.cfg 
+arch-chroot /mnt grub-mkconfig -o /boot/grub/grub.cfg 
 if [ $? -ne 0 ]; then echo -e "$DATE Install grub failed $FAIL" >> $LOGFILE && tail -1 $LOGFILE && exit 1 ; fi
 }
+
+passwd_root(){
+clear
+header
+echo " Enter root password for the new system ..."
+arch-chroot /mnt passwd
+}
+
 
 
 #
