@@ -1,16 +1,38 @@
 #!/bin/bash
+#BSD 3-Clause License
+#
+#Copyright (c) 2019, VielLosero
+#All rights reserved.
+#
+#Redistribution and use in source and binary forms, with or without
+#modification, are permitted provided that the following conditions are met:
+#
+#1. Redistributions of source code must retain the above copyright notice, this
+#   list of conditions and the following disclaimer.
+#
+#2. Redistributions in binary form must reproduce the above copyright notice,
+#   this list of conditions and the following disclaimer in the documentation
+#   and/or other materials provided with the distribution.
+#
+#3. Neither the name of the copyright holder nor the names of its
+#   contributors may be used to endorse or promote products derived from
+#   this software without specific prior written permission.
+#
+#THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+#AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+#IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+#DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+#FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+#DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+#SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+#CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+#OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+#OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#Mi script de instalacion de arch
+
+#Arch instalation script 
 
 version="version 0.2"
-
-#### Comandos utiles
-#less install.txt --> leer fichero install
-#lsblk --> ver particiones montadas
-#fdisk -l --> ver discos
-#ifinstall_config --> ver interficies de red
-#dig archlinux.org --> comprobar conexion a internet
-#cat .zsh_history > /mnt/home/mi_zsh_history_arch_install.txt
 
 ########################################
 # Log file 
@@ -24,12 +46,16 @@ echo "----------------------------------" >> $LOGFILE
 #echo "Runing $0 with $@ arguments."
 #echo "Look at $LOG_FILE for more info."
 
-
+########################################
+# LOG alerts
+########################################
 RUN="[\e[1;33m**\e[00m] "
 FAIL="[\e[1;31mfailed\e[00m] "
 OK="[\e[1;32mok\e[00m] "
 
-
+########################################
+# Defaults 
+########################################
 set_default_net(){
 #net
 DNS="8.8.8.8"
@@ -76,6 +102,9 @@ LOCALETYPE="UTF-8"
 CLOCK="utc"
 }
 
+########################################
+#  NET
+########################################
 test_net(){
 clear
 header
@@ -151,8 +180,9 @@ if [ $? -ne 0 ]; then result=1 && return ; fi
 if [ $result -eq 1 ]; then echo -e "$DATE Network install_config $FAIL" >> $LOGFILE && tail -1 $LOGFILE && exit 1 ; fi
 }
 
-
-
+########################################
+#  KEYMAP
+########################################
 keymap_menu(){
 clear
 header
@@ -191,6 +221,9 @@ if [ $? -ne 0 ]; then echo -e "$DATE Load keymap $FAIL" >> $LOGFILE && tail -1 $
 
 declare -a keymap_list=("ansi-dvorak" "amiga-de" "amiga-us" "applkey" "atari-de" "atari-se" "atari-uk-falcon" "atari-us" "azerty" "backspace" "bashkir" "be-latin1" "bg-cp1251" "bg-cp855" "bg_bds-cp1251" "bg_bds-utf8" "bg_pho-cp1251" "bg_pho-utf8" "br-abnt" "br-abnt2" "br-latin1-abnt2" "br-latin1-us" "by" "by-cp1251" "bywin-cp1251" "cf" "colemak" "croat" "ctrl" "cz" "cz-cp1250" "cz-lat2" "cz-lat2-prog" "cz-qwertz" "cz-us-qwertz" "de" "de-latin1" "de-latin1-nodeadkeys" "de-mobii" "de_ch-latin1" "de_alt_utf-8" "defkeymap" "defkeymap_v1.0" "dk" "dk-latin1" "dvorak" "dvorak-ca-fr" "dvorak-es" "dvorak-fr" "dvorak-l" "dvorak-la" "dvorak-programmer" "dvorak-r" "dvorak-ru" "dvorak-sv-a1" "dvorak-sv-a5" "dvorak-uk" "emacs" "emacs2" "es" "es-cp850" "es-olpc" "et" "et-nodeadkeys" "euro" "euro1" "euro2" "fi" "fr" "fr-bepo" "fr-bepo-latin9" "fr-latin1" "fr-latin9" "fr-pc" "fr_ch" "fr_ch-latin1" "gr" "gr-pc" "hu" "hu101" "il" "il-heb" "il-phonetic" "is-latin1" "is-latin1-us" "it" "it-ibm" "it2" "jp106" "kazakh" "keypad" "ky_alt_sh-utf-8" "kyrgyz" "la-latin1" "lt" "lt.baltic" "lt.l4" "lv" "lv-tilde" "mac-be" "mac-de-latin1" "mac-de-latin1-nodeadkeys" "mac-de_ch" "mac-dk-latin1" "mac-dvorak" "mac-es" "mac-euro" "mac-euro2" "mac-fi-latin1" "mac-fr" "mac-fr_ch-latin1" "mac-it" "mac-pl" "mac-pt-latin1" "mac-se" "mac-template" "mac-uk" "mac-us" "mk" "mk-cp1251" "mk-utf" "mk0" "nl" "nl2" "no" "no-dvorak" "no-latin1" "pc110" "pl" "pl1" "pl2" "pl3" "pl4" "pt-latin1" "pt-latin9" "pt-olpc" "ro" "ro_std" "ro_win" "ru" "ru-cp1251" "ru-ms" "ru-yawerty" "ru1" "ru2" "ru3" "ru4" "ru_win" "ruwin_alt-cp1251" "ruwin_alt-koi8-r" "ruwin_alt-utf-8" "ruwin_alt_sh-utf-8" "ruwin_cplk-cp1251" "ruwin_cplk-koi8-r" "ruwin_cplk-utf-8" "ruwin_ct_sh-cp1251" "ruwin_ct_sh-koi8-r" "ruwin_ct_sh-utf-8" "ruwin_ctrl-cp1251" "ruwin_ctrl-koi8-r" "ruwin_ctrl-utf-8" "se-fi-ir209" "se-fi-lat6" "se-ir209" "se-lat6" "sg" "sg-latin1" "sg-latin1-lk450" "sk-prog-qwerty" "sk-prog-qwertz" "sk-qwerty" "sk-qwertz" "slovene" "sr-cy" "sun-pl" "sun-pl-altgraph" "sundvorak" "sunkeymap" "sunt4-es" "sunt4-fi-latin1" "sunt4-no-latin1" "sunt5-cz-us" "sunt5-de-latin1" "sunt5-es" "sunt5-fi-latin1" "sunt5-fr-latin1" "sunt5-ru" "sunt5-uk" "sunt5-us-cz" "sunt6-uk" "sv-latin1" "tj_alt-utf8" "tr_f-latin5" "tr_q-latin5" "tralt" "trf" "trf-fggiod" "trq" "ttwin_alt-utf-8" "ttwin_cplk-utf-8" "ttwin_ct_sh-utf-8" "ttwin_ctrl-utf-8" "ua" "ua-cp1251" "ua-utf" "ua-utf-ws" "ua-ws" "uk" "unicode" "us" "us-acentos" "wangbe" "wangbe2" "windowkeys");
 
+########################################
+#  PARTITION
+########################################
 partition_menu(){
 clear
 header
@@ -387,6 +420,9 @@ echo -e "$DATE Filesystem mounted. $OK" >> $LOGFILE && tail -1 $LOGFILE
 }
 
 
+########################################
+#  
+########################################
 chroot_menu(){
 clear
 header
@@ -416,6 +452,9 @@ esac
 }
 
 
+########################################
+#  INSTALLATION
+########################################
 installation_menu(){
 clear
 header
@@ -431,7 +470,7 @@ echo " "
 echo -e "\e[00;31m [q] quit/exit\e[00m" 
 echo " "
 echo "=========================================================" 
-echo -ne "\e[1;32m enter a option [1-6] or [q]: \e[00m"
+echo -ne "\e[1;32m enter a option [0-6] or [q]: \e[00m"
 
 read option
 case "$option" in
@@ -814,7 +853,7 @@ echo " "
 echo -e "\e[00;31m [q] quit/exit\e[00m" 
 echo " "
 echo "=========================================================" 
-echo -ne "\e[1;32m enter a option [1-7] or [q]: \e[00m"
+echo -ne "\e[1;32m enter a option [0-6] or [q]: \e[00m"
 read option # read option
 case "$option" in # exec option
 	0)	clear ; header ; echo " "
