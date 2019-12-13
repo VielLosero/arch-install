@@ -620,7 +620,7 @@ pacman -S i3-wm xorg-xinit xorg-server dmenu mesa-demos feh w3m termite
 
 net_install(){
 # net conectivity
-pacman -S openssh bind-tools bridge-utils macchanger wpa_supplicant net-tools dnsmasq
+pacman -S openssh openvpn bind-tools bridge-utils macchanger wpa_supplicant net-tools dnsmasq transmission-gtk
 }
 
 web(){
