@@ -1,26 +1,32 @@
-# Project Title
+# Arch linux install script
 
-Arch linux install script.
+This is mi arch linux install script with mi config for download in new instalations. I use the best defaults configs i know for install arch. U can test it or change defautl values inside the script.
 
 ## Getting Started
 
-These instructions will get you a copy of the project up and running on your local machine for development and testing purposes.
+These instructions will get you a copy of the project. There is higth recomended to run this script on virtual machines or on system instalations after booting the arch install cd. Do not run the script on runing systems. The script can format your entore disk if u dont know what are u doing.
 
 ### Installing
+git clone https://github.com/VielLosero/arch-install.git                                                                                         
 
-git clone 
+```shell
+root@kali:~# git clone https://github.com/VielLosero/arch-install.git                                                                                         
+Clonando en 'arch-install'...                                                                                                                                 
+remote: Enumerating objects: 26, done.                                                                                                                        
+remote: Counting objects: 100% (26/26), done.                                                                                                                 
+remote: Compressing objects: 100% (11/11), done.                                                                                                              
+remote: Total 26 (delta 14), reused 26 (delta 14), pack-reused 0                                                                                              
+Desempaquetando objetos: 100% (26/26), listo.   
+```
 
-```
-Give the example
-```
 ## Running the script
 
 After cloning the repository change to arch-install dir and run the script 
 
 ```shell
-git clone 
-cd arch-install
-./install-archlinux.sh
+root@kali:~# cd arch-install/                                                                                                                                 
+root@kali:~/arch-install# ./install-archlinux.sh                                                                                                              
+                                                                                                                                                              
 ```
 
 #### Output While Running
